@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserContext } from '../contexts/UserContext';
 import { TaskContext } from '../contexts/TaskContext';
@@ -8,6 +8,26 @@ import Mascot from '../components/Mascot';
 import BottomNavBar from '../components/BottomNavBar';
 import { useNavigate } from 'react-router-dom';
 import { isToday, startOfToday, format } from 'date-fns';
+
+// Kawaii bear avatar (shows when no profile pic set)
+const KawaiiAvatar = () => (
+  <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="#FFE4F5"/>
+    <circle cx="18" cy="22" r="14" fill="#F9A8D4"/>
+    <circle cx="82" cy="22" r="14" fill="#F9A8D4"/>
+    <circle cx="18" cy="22" r="8" fill="#FDA4AF"/>
+    <circle cx="82" cy="22" r="8" fill="#FDA4AF"/>
+    <circle cx="50" cy="55" r="36" fill="white"/>
+    <ellipse cx="38" cy="48" rx="5" ry="6" fill="#2D1040"/>
+    <ellipse cx="62" cy="48" rx="5" ry="6" fill="#2D1040"/>
+    <circle cx="40" cy="46" r="2" fill="white"/>
+    <circle cx="64" cy="46" r="2" fill="white"/>
+    <ellipse cx="28" cy="60" rx="9" ry="6" fill="#FDA4AF" opacity="0.5"/>
+    <ellipse cx="72" cy="60" rx="9" ry="6" fill="#FDA4AF" opacity="0.5"/>
+    <ellipse cx="50" cy="58" rx="4" ry="3" fill="#FDA4AF"/>
+    <path d="M40 66 Q50 74 60 66" stroke="#E879A2" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+  </svg>
+);
 
 // Priority color map
 const PRIORITY_COLORS = {
@@ -37,6 +57,27 @@ export default function Home() {
     const today = startOfToday();
     return tasks.filter(t => !t.completed && isToday(new Date(t.date || today)));
   }, [tasks]);
+
+  useEffect(() => {
+    // Make mallow randomly emote when on Home screen
+    let timeoutId;
+    const scheduleNextEmote = () => {
+      // Random gap between 8s and 25s
+      const delay = Math.floor(Math.random() * (25000 - 8000 + 1)) + 8000;
+      timeoutId = setTimeout(() => {
+        const categories = ['jokes', 'loving', 'motivation'];
+        triggerRandom(categories[Math.floor(Math.random() * categories.length)]);
+        scheduleNextEmote(); // Infinite loop while component is mounted
+      }, delay);
+    };
+    
+    // Initial delay so he doesn't speak immediately over welcome message
+    timeoutId = setTimeout(() => {
+      scheduleNextEmote();
+    }, 6000);
+
+    return () => clearTimeout(timeoutId);
+  }, [triggerRandom]);
 
   const completedToday = useMemo(() => tasks.filter(t => t.completed && isToday(new Date(t.date || startOfToday()))).length, [tasks]);
   const recentFolders = useMemo(() => folders.slice(0, 4), [folders]);
@@ -83,11 +124,15 @@ export default function Home() {
             boxShadow: '0 4px 20px rgba(232,121,162,0.12)',
           }}
         >
-          <img
-            src={profilePic || `https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${userName || 'marshmallow'}&backgroundColor=FFF5FA`}
-            className="w-full h-full rounded-[16px] object-cover scale-110"
-            alt="avatar"
-          />
+          {profilePic ? (
+            <img
+              src={profilePic}
+              className="w-full h-full rounded-[16px] object-cover"
+              alt="avatar"
+            />
+          ) : (
+            <KawaiiAvatar />
+          )}
           <motion.div
             animate={{ scale: [1, 1.3, 1] }}
             transition={{ duration: 2.5, repeat: Infinity }}
@@ -107,9 +152,9 @@ export default function Home() {
         className="px-6 mt-4 flex gap-3 relative z-10"
       >
         {[
-          { label: 'Tasks Today', value: todayTasks.length, icon: '📋', color: '#E879A2' },
-          { label: 'Done Today', value: completedToday, icon: '✅', color: '#4ECDC4' },
-          { label: 'Spaces', value: folders.length, icon: '📁', color: '#A78BCA' },
+          { label: 'Tasks Today', value: todayTasks.length, icon: 'task_alt', color: '#E879A2' },
+          { label: 'Done Today', value: completedToday, icon: 'check_circle', color: '#4ECDC4' },
+          { label: 'Spaces', value: folders.length, icon: 'folder_special', color: '#A78BCA' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -124,7 +169,7 @@ export default function Home() {
               boxShadow: '0 2px 12px rgba(45,16,64,0.05)',
             }}
           >
-            <div className="text-xl mb-0.5">{stat.icon}</div>
+            <span className="material-symbols-rounded mb-0.5 block" style={{ fontSize: 20, color: stat.color }}>{stat.icon}</span>
             <div className="font-headline text-[22px] font-black" style={{ color: stat.color }}>{stat.value}</div>
             <div className="font-quicksand text-[9px] font-bold text-on-surface-muted uppercase tracking-wide">{stat.label}</div>
           </motion.div>
@@ -282,7 +327,7 @@ export default function Home() {
               className="col-span-2 h-[100px] rounded-[24px] flex items-center justify-center gap-3"
               style={{ background: 'rgba(232,121,162,0.05)', border: '2px dashed rgba(232,121,162,0.15)' }}
             >
-              <span className="text-2xl">📁</span>
+              <span className="material-symbols-rounded" style={{ fontSize: 28, color: 'rgba(232,121,162,0.4)' }}>folder_open</span>
               <p className="font-quicksand text-[13px] font-bold" style={{ color: 'rgba(232,121,162,0.4)' }}>
                 Tap Files to create spaces
               </p>
@@ -305,10 +350,10 @@ export default function Home() {
                 }}
               >
                 <div
-                  className="w-12 h-12 rounded-[16px] flex items-center justify-center text-xl"
+                  className="w-12 h-12 rounded-[16px] flex items-center justify-center"
                   style={{ background: folderColors[i % folderColors.length] }}
                 >
-                  📁
+                  <span className="material-symbols-rounded" style={{ fontSize: 24, color: '#7C6D85' }}>folder_open</span>
                 </div>
                 <span className="font-headline text-[13px] font-black text-on-surface text-center leading-tight">
                   {folder.name}
@@ -316,37 +361,6 @@ export default function Home() {
               </motion.button>
             ))
           )}
-        </div>
-      </section>
-
-      {/* ── QUICK ACTIONS ── */}
-      <section className="mt-7 px-6 relative z-10">
-        <h2 className="font-headline text-[20px] font-black text-on-surface mb-4">Quick Actions</h2>
-        <div className="flex gap-3">
-          {[
-            { label: 'Add Task', icon: '✅', path: '/tasks', color: '#E879A2', bg: '#FDF2F8' },
-            { label: 'Reminders', icon: '🔔', path: '/reminders', color: '#A78BCA', bg: '#F5F3FF' },
-            { label: 'Mascot', icon: '🍬', path: '/mascot', color: '#38BDF8', bg: '#F0F9FF' },
-          ].map((a, i) => (
-            <motion.button
-              key={a.label}
-              whileTap={{ scale: 0.93 }}
-              onClick={() => navigate(a.path)}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.06 }}
-              className="flex-1 rounded-[20px] py-4 flex flex-col items-center gap-2"
-              style={{
-                background: a.bg,
-                border: `1.5px solid ${a.color}22`,
-              }}
-            >
-              <span className="text-xl">{a.icon}</span>
-              <span className="font-headline text-[11px] font-black uppercase tracking-wide" style={{ color: a.color }}>
-                {a.label}
-              </span>
-            </motion.button>
-          ))}
         </div>
       </section>
 

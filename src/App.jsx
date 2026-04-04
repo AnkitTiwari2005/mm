@@ -17,12 +17,27 @@ import { MascotProvider } from './contexts/MascotContext';
 import { ReminderProvider } from './contexts/ReminderContext';
 import { FileProvider } from './contexts/FileContext';
 
-import { setupNotificationChannels } from './utils/notifications';
+import { setupNotificationChannels, scheduleWellnessNotifications, rescheduleAllTasks } from './utils/notifications';
 import { useEffect } from 'react';
 
 export default function App() {
   useEffect(() => {
-    setupNotificationChannels();
+    const initNotifications = async () => {
+      await setupNotificationChannels();
+      await scheduleWellnessNotifications();
+
+      // Re-schedule all pending task notifications on every app launch
+      // This ensures notifications survive app kills and device restarts
+      try {
+        const stored = localStorage.getItem('marshmallow_tasks');
+        if (stored) {
+          const tasks = JSON.parse(stored);
+          await rescheduleAllTasks(tasks);
+        }
+      } catch { /* ignore */ }
+    };
+
+    initNotifications();
   }, []);
 
   return (

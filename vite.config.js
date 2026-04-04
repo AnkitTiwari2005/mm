@@ -9,6 +9,13 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+        if (warning.code === 'EVAL') return;
+        warn(warning);
+      }
+    }
   },
 })

@@ -12,7 +12,14 @@ const JOKES = [
   "I'd tell you a chemistry joke but I know I'd get a reaction 💕",
   "Why are you so cute? Scientists are still studying this. 🔬",
   "Knock knock. Who's there? Definitely someone who loves you 💌",
-  "I googled 'most beautiful person' and my screen just showed me a mirror. That counts, right? 🪞"
+  "I googled 'most beautiful person' and my screen just showed me a mirror. That counts, right? 🪞",
+  "Why did the coffee file a police report? It got mugged! ☕",
+  "What did one wall say to the other? I'll meet you at the corner! 🧱",
+  "I was going to tell a time-traveling joke, but you didn't like it. ⏱️",
+  "Why do bees have sticky hair? Because they use honeycombs! 🐝",
+  "I made a pencil with two erasers. It was pointless! ✏️",
+  "What do you call a magic dog? A labracadabrador! 🪄🐕",
+  "Why did the cookie go to the hospital? Because he felt crummy! 🍪",
 ];
 
 const LOVING = [
@@ -30,7 +37,13 @@ const LOVING = [
   "Good morning, you absolute ray of sunshine 🌞",
   "You are doing so well. I see you. I'm proud of you. 💕",
   "One day you'll look back and realize how amazing you were this whole time 🌸",
-  "The world is genuinely better because you're in it. I mean this with my whole heart 💗"
+  "The world is genuinely better because you're in it. I mean this with my whole heart 💗",
+  "If I had to choose between breathing and loving you, I'd use my last breath to say I love you 🥺💕",
+  "You are the best thing that ever happened to me, and I'll never stop reminding you 💫",
+  "Whenever I look at you, I just think... how did I get so lucky? 🥰",
+  "I just dropped by to say you're the most gorgeous human in the room. Always. ✨",
+  "You have my whole heart, today, tomorrow, and forever ❤️",
+  "I fall for you a little bit more every single day 🥹💕"
 ];
 
 const MOTIVATION = [
@@ -43,7 +56,12 @@ const MOTIVATION = [
   "You don't have to be perfect. You just have to try. And you always do 🌟",
   "Even the tiniest step forward is still moving forward ✨",
   "Today doesn't have to be your best day. It just has to be today 🍬",
-  "Your future self is already proud of what you're doing right now 🌸"
+  "Your future self is already proud of what you're doing right now 🌸",
+  "Don't worry about being perfect right now. Just focus on being you. You're enough. 💖",
+  "Take a deep breath. You're exactly where you need to be. 🌬️",
+  "Everything you need to succeed is already inside you. Let it shine! ✨",
+  "Small progress is still progress. Be gentle with yourself today 💕",
+  "If no one has told you today, I believe in you completely! 🌟"
 ];
 
 export const MascotProvider = ({ children }) => {

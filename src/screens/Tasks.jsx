@@ -8,10 +8,10 @@ import clsx from 'clsx';
 import { format, isToday, isAfter, startOfToday } from 'date-fns';
 
 const TABS = [
-  { id: 'all',      label: 'All',      emoji: '📋' },
-  { id: 'today',    label: 'Today',    emoji: '☀️' },
-  { id: 'upcoming', label: 'Later',    emoji: '🔮' },
-  { id: 'done',     label: 'Done',     emoji: '✅' },
+  { id: 'all',      label: 'All',   icon: 'checklist' },
+  { id: 'today',    label: 'Today', icon: 'today' },
+  { id: 'upcoming', label: 'Later', icon: 'schedule' },
+  { id: 'done',     label: 'Done',  icon: 'task_alt' },
 ];
 
 const PRIORITY_STYLES = {
@@ -65,6 +65,7 @@ export default function Tasks() {
     date: format(new Date(), 'yyyy-MM-dd'),
     time: '09:00',
   });
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const today = startOfToday();
 
@@ -103,6 +104,11 @@ export default function Tasks() {
     setNewTask({ title: '', note: '', priority: 'pink', date: format(new Date(), 'yyyy-MM-dd'), time: '09:00' });
     setIsSheetOpen(false);
     triggerRandom('proud');
+  };
+
+  const handleDeleteRequest = (task) => setDeleteConfirm(task);
+  const handleDeleteConfirm = () => {
+    if (deleteConfirm) { deleteTask(deleteConfirm.id); setDeleteConfirm(null); }
   };
 
   return (
@@ -201,7 +207,7 @@ export default function Tasks() {
               boxShadow: activeTab === tab.id ? '0 4px 16px rgba(232,121,162,0.35)' : '0 2px 8px rgba(45,16,64,0.05)',
             }}
           >
-            <span>{tab.emoji}</span>
+            <span className="material-symbols-rounded" style={{ fontSize: 16 }}>{tab.icon}</span>
             <span>{tab.label}</span>
           </motion.button>
         ))}
@@ -288,12 +294,28 @@ export default function Tasks() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <p className={clsx(
-                          'font-headline text-[16px] font-black leading-snug truncate transition-all',
+                          'font-headline text-[16px] font-black leading-snug transition-all',
                           task.completed ? 'text-on-surface-muted line-through' : 'text-on-surface'
                         )}>
                           {task.title}
                         </p>
-                        <div className="flex items-center gap-2 mt-0.5">
+
+                        {/* Time + priority row */}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {task.time && (
+                            <div className="flex items-center gap-0.5">
+                              <span className="material-symbols-rounded" style={{ fontSize: 12, color: '#A78BCA' }}>schedule</span>
+                              <span className="font-quicksand text-[11px] font-bold" style={{ color: '#A78BCA' }}>
+                                {(() => {
+                                  const [hh, mm] = task.time.split(':');
+                                  const h = parseInt(hh);
+                                  const ampm = h >= 12 ? 'PM' : 'AM';
+                                  const h12 = h % 12 || 12;
+                                  return `${h12}:${mm} ${ampm}`;
+                                })()}
+                              </span>
+                            </div>
+                          )}
                           {task.date && (
                             <span className="font-quicksand text-[10px] font-bold uppercase tracking-widest text-on-surface-muted">
                               {format(new Date(task.date), 'MMM d')}
@@ -310,16 +332,29 @@ export default function Tasks() {
                             {ps.label}
                           </span>
                         </div>
+
+                        {/* Note (only on Tasks page) */}
+                        {task.note && !task.completed && (
+                          <div
+                            className="mt-1.5 px-2.5 py-1.5 rounded-[10px] flex items-start gap-1.5"
+                            style={{ background: 'rgba(167,139,202,0.08)', border: '1px solid rgba(167,139,202,0.12)' }}
+                          >
+                            <span className="material-symbols-rounded shrink-0" style={{ fontSize: 12, color: '#A78BCA', marginTop: 1 }}>sticky_note_2</span>
+                            <p className="font-quicksand text-[11px] font-semibold leading-snug text-on-surface-muted line-clamp-2">
+                              {task.note}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Delete */}
                       <motion.button
                         whileTap={{ scale: 0.88 }}
-                        onClick={() => deleteTask(task.id)}
+                        onClick={() => handleDeleteRequest(task)}
                         className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
                         style={{ background: 'rgba(232,121,162,0.08)' }}
                       >
-                        <span className="material-symbols-rounded text-primary" style={{ fontSize: 16 }}>close</span>
+                        <span className="material-symbols-rounded text-primary" style={{ fontSize: 16 }}>delete</span>
                       </motion.button>
                     </div>
                   </motion.div>
@@ -458,6 +493,61 @@ export default function Tasks() {
                   }}
                 >
                   Save Task 🌸
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── DELETE TASK CONFIRMATION ── */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirm(null)}
+              className="fixed inset-0 z-[120]"
+              style={{ background: 'rgba(45,16,64,0.3)', backdropFilter: 'blur(16px)' }}
+            />
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 40 }}
+              transition={{ type: 'spring', bounce: 0.35 }}
+              className="fixed z-[130] left-6 right-6 rounded-[32px] p-6 flex flex-col items-center text-center"
+              style={{
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'rgba(255,255,255,0.98)',
+                backdropFilter: 'blur(40px)',
+                boxShadow: '0 24px 80px rgba(45,16,64,0.18)',
+                border: '1.5px solid rgba(255,255,255,0.95)',
+              }}
+            >
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'rgba(253,164,175,0.15)' }}>
+                <span className="material-symbols-rounded" style={{ fontSize: 32, color: '#E879A2' }}>delete_forever</span>
+              </div>
+              <h3 className="font-headline text-[22px] font-black text-on-surface mb-2">Delete this task?</h3>
+              <p className="font-quicksand text-[14px] font-semibold text-on-surface-muted mb-6 leading-relaxed">
+                &ldquo;{deleteConfirm?.title}&rdquo; will be removed permanently.
+              </p>
+              <div className="flex gap-3 w-full">
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 h-[50px] rounded-[18px] font-headline font-black text-[14px]"
+                  style={{ background: 'rgba(196,186,203,0.15)', color: '#7C6D85' }}
+                >
+                  Keep it
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 h-[50px] rounded-[18px] font-headline font-black text-[14px] text-white"
+                  style={{ background: 'linear-gradient(135deg, #FDA4AF, #E879A2)', boxShadow: '0 6px 20px rgba(232,121,162,0.4)' }}
+                >
+                  Delete
                 </motion.button>
               </div>
             </motion.div>

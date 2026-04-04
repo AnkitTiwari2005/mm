@@ -1,17 +1,19 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileContext } from '../contexts/FileContext';
 import Mascot from '../components/Mascot';
 import { format } from 'date-fns';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { Toast } from '@capacitor/toast';
 
 const FILE_TYPE_CONFIG = {
-  'image/':       { emoji: '🖼️', label: 'Image',    color: '#F9A8D4', bg: '#FDF2F8' },
-  'video/':       { emoji: '🎬', label: 'Video',    color: '#C4B5FD', bg: '#F5F3FF' },
-  'audio/':       { emoji: '🎵', label: 'Audio',    color: '#7DD3FC', bg: '#F0F9FF' },
-  'application/pdf': { emoji: '📄', label: 'PDF', color: '#FCA5A5', bg: '#FFF5F5' },
-  'default':      { emoji: '📁', label: 'File',    color: '#86EFAC', bg: '#F0FDF4' },
+  'image/':       { icon: 'image', label: 'Image',  color: '#F9A8D4', bg: '#FDF2F8' },
+  'video/':       { icon: 'play_circle', label: 'Video', color: '#C4B5FD', bg: '#F5F3FF' },
+  'audio/':       { icon: 'graphic_eq', label: 'Audio', color: '#7DD3FC', bg: '#F0F9FF' },
+  'application/pdf': { icon: 'picture_as_pdf', label: 'PDF', color: '#FCA5A5', bg: '#FFF5F5' },
+  'default':      { icon: 'folder_open', label: 'File', color: '#86EFAC', bg: '#F0FDF4' },
 };
 
 const getFileConfig = (type) => {
@@ -29,6 +31,71 @@ const formatSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+// Confirmation Dialog component
+const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Delete', danger = true }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <>
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onCancel}
+          className="fixed inset-0 z-[120]"
+          style={{ background: 'rgba(45,16,64,0.3)', backdropFilter: 'blur(16px)' }}
+        />
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0, y: 40 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.85, opacity: 0, y: 40 }}
+          transition={{ type: 'spring', bounce: 0.35 }}
+          className="fixed z-[130] left-6 right-6 rounded-[32px] p-6 flex flex-col items-center text-center"
+          style={{
+            top: '50%',
+            transform: 'translateY(-50%) scale(1)',
+            background: 'rgba(255,255,255,0.98)',
+            backdropFilter: 'blur(40px)',
+            boxShadow: '0 24px 80px rgba(45,16,64,0.18)',
+            border: '1.5px solid rgba(255,255,255,0.95)',
+          }}
+        >
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{ background: danger ? 'rgba(253,164,175,0.15)' : 'rgba(167,139,202,0.12)' }}
+          >
+            <span className="material-symbols-rounded" style={{ fontSize: 32, color: danger ? '#E879A2' : '#A78BCA' }}>
+              {danger ? 'delete_forever' : 'help'}
+            </span>
+          </div>
+          <h3 className="font-headline text-[22px] font-black text-on-surface mb-2">{title}</h3>
+          <p className="font-quicksand text-[14px] font-semibold text-on-surface-muted mb-6 leading-relaxed">{message}</p>
+          <div className="flex gap-3 w-full">
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={onCancel}
+              className="flex-1 h-[50px] rounded-[18px] font-headline font-black text-[14px]"
+              style={{ background: 'rgba(196,186,203,0.15)', color: '#7C6D85' }}
+            >
+              Keep it
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={onConfirm}
+              className="flex-1 h-[50px] rounded-[18px] font-headline font-black text-[14px] text-white"
+              style={{
+                background: danger
+                  ? 'linear-gradient(135deg, #FDA4AF, #E879A2)'
+                  : 'linear-gradient(135deg, #C4B5FD, #A78BCA)',
+                boxShadow: danger ? '0 6px 20px rgba(232,121,162,0.4)' : '0 6px 20px rgba(167,139,202,0.4)',
+              }}
+            >
+              {confirmLabel}
+            </motion.button>
+          </div>
+        </motion.div>
+      </>
+    )}
+  </AnimatePresence>
+);
+
 export default function FolderDetail() {
   const { folderId } = useParams();
   const navigate = useNavigate();
@@ -42,15 +109,18 @@ export default function FolderDetail() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [renameVal, setRenameVal] = useState(folder?.name || '');
+  const [deleteFileConfirm, setDeleteFileConfirm] = useState(null);
+  const [deleteFolderConfirm, setDeleteFolderConfirm] = useState(false);
   const fileInputRef = useRef(null);
+  const fileDataMap = useRef({}); // store blob URLs for actual files
 
   if (!folder) {
     return (
       <div className="flex h-screen items-center justify-center p-8 text-center" style={{ background: '#FFF5FA' }}>
         <div className="flex flex-col items-center gap-4">
-          <span className="text-5xl">🌊</span>
+          <span className="material-symbols-rounded" style={{ fontSize: 56, color: '#A78BCA' }}>cloud_off</span>
           <p className="font-headline text-[20px] font-black text-on-surface">
-            Oops, this space floated away! ☁️
+            Oops, this space floated away!
           </p>
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -65,14 +135,134 @@ export default function FolderDetail() {
     );
   }
 
+  // Helper: save file to device filesystem and return the URI
+  const saveFileToDevice = async (id, fileName, base64Data) => {
+    try {
+      // base64Data is "data:mime;base64,XXXX" — strip the prefix
+      const pureBase64 = base64Data.split(',')[1];
+      const safeName = id + '_' + fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const result = await Filesystem.writeFile({
+        path: 'marshmallow_files/' + safeName,
+        data: pureBase64,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+      return result.uri;
+    } catch (e) {
+      console.warn('File save error:', e);
+      return null;
+    }
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    addFile({ folderId, name: file.name, type: file.type || 'unknown', size: file.size, dateAdded: new Date().toISOString() });
+    const id = Date.now().toString();
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result;
+      // Write to device filesystem immediately
+      const uri = await saveFileToDevice(id, file.name, base64);
+      fileDataMap.current[id] = { base64, uri, fileName: file.name };
+      addFile({ folderId, name: file.name, type: file.type || 'unknown', size: file.size, dateAdded: new Date().toISOString(), fileId: id });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Restore files from device on mount — re-save any that don't have URIs
+  useEffect(() => {
+    const restoreFiles = async () => {
+      for (const file of folderFiles) {
+        if (!fileDataMap.current[file.fileId]?.uri) {
+          // Try to read from filesystem
+          const safeName = file.fileId + '_' + file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+          try {
+            const stat = await Filesystem.stat({
+              path: 'marshmallow_files/' + safeName,
+              directory: Directory.Cache,
+            });
+            fileDataMap.current[file.fileId] = {
+              uri: stat.uri,
+              fileName: file.name,
+            };
+          } catch {
+            // File not on device yet
+          }
+        }
+      }
+    };
+    restoreFiles();
+  }, [folderFiles]);
+
+  const handleOpen = async (file) => {
+    const fileInfo = fileDataMap.current[file.fileId];
+    if (fileInfo?.uri) {
+      try {
+        const { FileOpener } = await import('@capawesome-team/capacitor-file-opener');
+        await FileOpener.openFile({ path: fileInfo.uri });
+      } catch (e) {
+        console.warn('Open error:', e);
+        setIsPreviewOpen(true);
+      }
+    } else if (fileInfo?.base64) {
+      // Re-save and try again
+      const uri = await saveFileToDevice(file.fileId, file.name, fileInfo.base64);
+      if (uri) {
+        fileInfo.uri = uri;
+        handleOpen(file);
+      } else {
+        setIsPreviewOpen(true);
+      }
+    } else {
+      setIsPreviewOpen(true);
+    }
+  };
+
+  const handleShare = async (file) => {
+    const fileInfo = fileDataMap.current[file.fileId];
+    try {
+      let fileUri = fileInfo?.uri;
+      
+      // If no URI saved, save now
+      if (!fileUri && fileInfo?.base64) {
+        fileUri = await saveFileToDevice(file.fileId, file.name, fileInfo.base64);
+        if (fileUri) fileInfo.uri = fileUri;
+      }
+
+      if (fileUri) {
+        // Share the actual file using its URI
+        await Share.share({
+          title: file.name,
+          url: fileUri,
+          dialogTitle: 'Share from Marshmallow Space',
+        });
+        return;
+      }
+
+      // Fallback: just share text
+      await Share.share({
+        title: file.name,
+        text: 'Check out this file from my Marshmallow Space: ' + file.name,
+        dialogTitle: 'Share from Marshmallow Space',
+      });
+    } catch (e) {
+      await Toast.show({ text: 'Could not share file', duration: 'short' });
+    }
+  };
+
+  const confirmDeleteFile = (file) => {
+    setDeleteFileConfirm(file);
+    setSelectedFile(null);
+  };
+
+  const confirmDeleteFolder = () => {
+    setIsMenuOpen(false);
+    setDeleteFolderConfirm(true);
   };
 
   return (
-    <main className="min-h-screen w-full flex flex-col relative" style={{ background: '#FFF5FA', paddingBottom: 110 }}>
+    <main className="min-h-screen w-full flex flex-col relative" style={{ background: '#FFF5FA', paddingBottom: 40 }}>
       {/* Aurora BG */}
       <div className="aurora-bg">
         <div className="aurora-orb-1" style={{ background: 'radial-gradient(ellipse, rgba(186,230,253,0.3) 0%, transparent 70%)' }} />
@@ -163,7 +353,7 @@ export default function FolderDetail() {
                 animate={{ opacity: 1 }}
                 className="flex flex-col items-center py-10 text-center gap-4"
               >
-                <Mascot size={110} customEmote="thinking" showGlow={false} customMessage="No files yet! 🌸" />
+                <Mascot size={110} customEmote="thinking" showGlow={false} customMessage="No files yet! Add some magic here!" />
               </motion.div>
             ) : (
               <div className="space-y-2">
@@ -184,10 +374,10 @@ export default function FolderDetail() {
                     >
                       {/* Type icon */}
                       <div
-                        className="w-11 h-11 rounded-[14px] flex items-center justify-center text-xl shrink-0"
+                        className="w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0"
                         style={{ background: cfg.bg }}
                       >
-                        {cfg.emoji}
+                        <span className="material-symbols-rounded" style={{ fontSize: 24, color: cfg.color }}>{cfg.icon}</span>
                       </div>
 
                       {/* Info */}
@@ -241,10 +431,12 @@ export default function FolderDetail() {
               {/* File preview header */}
               <div className="flex items-center gap-4 mb-7">
                 <div
-                  className="w-16 h-16 rounded-[20px] flex items-center justify-center text-3xl shrink-0"
+                  className="w-16 h-16 rounded-[20px] flex items-center justify-center shrink-0"
                   style={{ background: getFileConfig(selectedFile.type).bg }}
                 >
-                  {getFileConfig(selectedFile.type).emoji}
+                  <span className="material-symbols-rounded" style={{ fontSize: 32, color: getFileConfig(selectedFile.type).color }}>
+                    {getFileConfig(selectedFile.type).icon}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-headline text-[18px] font-black text-on-surface truncate">{selectedFile.name}</h3>
@@ -255,52 +447,34 @@ export default function FolderDetail() {
               </div>
 
               {/* Actions */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={async () => {
-                    if (selectedFile.type.startsWith('image/')) {
-                      setIsPreviewOpen(true);
-                    } else {
-                      await Toast.show({ text: `Opened ${selectedFile.name} ✨`, duration: 'short' });
-                      setSelectedFile(null);
-                    }
-                  }}
-                  className="flex flex-col items-center justify-center py-4 rounded-[22px] gap-1.5"
+                  onClick={() => handleOpen(selectedFile)}
+                  className="flex flex-col items-center justify-center py-5 rounded-[22px] gap-2"
                   style={{ background: 'rgba(186,230,253,0.1)', border: '1.5px solid rgba(186,230,253,0.2)' }}
                 >
-                  <span className="text-2xl">📖</span>
+                  <span className="material-symbols-rounded" style={{ fontSize: 28, color: '#0369A1' }}>open_in_new</span>
                   <span className="font-headline text-[11px] font-black uppercase tracking-wide" style={{ color: '#0369A1' }}>Open</span>
                 </motion.button>
 
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={async () => {
-                    const { Share } = await import('@capacitor/share');
-                    try {
-                      await Share.share({
-                        title: selectedFile.name,
-                        text: `Check out this file from my Marshmallow Space: ${selectedFile.name} (${formatSize(selectedFile.size)})`,
-                        dialogTitle: 'Share File'
-                      });
-                    } catch (e) {
-                      console.log('Share failed', e);
-                    }
-                  }}
-                  className="flex flex-col items-center justify-center py-4 rounded-[22px] gap-1.5"
+                  onClick={() => handleShare(selectedFile)}
+                  className="flex flex-col items-center justify-center py-5 rounded-[22px] gap-2"
                   style={{ background: 'rgba(232,121,162,0.07)', border: '1.5px solid rgba(232,121,162,0.15)' }}
                 >
-                  <span className="text-2xl">📤</span>
+                  <span className="material-symbols-rounded" style={{ fontSize: 28, color: '#E879A2' }}>share</span>
                   <span className="font-headline text-[11px] font-black uppercase tracking-wide" style={{ color: '#E879A2' }}>Share</span>
                 </motion.button>
 
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => { deleteFile(selectedFile.id); setSelectedFile(null); }}
-                  className="flex flex-col items-center justify-center py-4 rounded-[22px] gap-1.5"
+                  onClick={() => confirmDeleteFile(selectedFile)}
+                  className="flex flex-col items-center justify-center py-5 rounded-[22px] gap-2"
                   style={{ background: 'rgba(253,164,175,0.1)', border: '1.5px solid rgba(253,164,175,0.2)' }}
                 >
-                  <span className="text-2xl">🗑️</span>
+                  <span className="material-symbols-rounded" style={{ fontSize: 28, color: '#E879A2' }}>delete</span>
                   <span className="font-headline text-[11px] font-black uppercase tracking-wide" style={{ color: '#E879A2' }}>Delete</span>
                 </motion.button>
               </div>
@@ -329,9 +503,11 @@ export default function FolderDetail() {
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-lg aspect-square rounded-[32px] overflow-hidden bg-white/5 flex items-center justify-center relative shadow-2xl"
+              className="w-full max-w-lg aspect-square rounded-[32px] overflow-hidden bg-white/5 flex flex-col items-center justify-center relative shadow-2xl"
             >
-              <div className="text-6xl mb-4">{getFileConfig(selectedFile.type).emoji}</div>
+              <span className="material-symbols-rounded mb-4" style={{ fontSize: 80, color: getFileConfig(selectedFile.type).color }}>
+                {getFileConfig(selectedFile.type).icon}
+              </span>
               <div className="absolute bottom-10 left-0 right-0 text-center px-8">
                 <h4 className="font-headline text-[22px] font-black text-white mb-2">{selectedFile.name}</h4>
                 <p className="font-quicksand text-[14px] font-bold text-white/60">
@@ -344,7 +520,7 @@ export default function FolderDetail() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
               className="mt-8 font-quicksand text-[13px] font-bold text-white/40 uppercase tracking-widest"
             >
-              Marshmallow Secure Space 🍬
+              Marshmallow Secure Space
             </motion.p>
           </motion.div>
         )}
@@ -370,9 +546,25 @@ export default function FolderDetail() {
               }}
             >
               {[
-                { label: 'Add Files', emoji: '📎', action: () => { setIsMenuOpen(false); fileInputRef.current?.click(); } },
-                { label: 'Rename Space', emoji: '✏️', action: () => { setIsMenuOpen(false); setIsRenameOpen(true); } },
-                { label: 'Delete Space', emoji: '🗑️', action: () => { deleteFolder(folder.id); navigate('/files'); }, danger: true },
+                {
+                  label: 'Add Files',
+                  icon: 'attach_file',
+                  color: '#0369A1',
+                  action: () => { setIsMenuOpen(false); fileInputRef.current?.click(); }
+                },
+                {
+                  label: 'Rename Space',
+                  icon: 'edit',
+                  color: '#A78BCA',
+                  action: () => { setIsMenuOpen(false); setIsRenameOpen(true); }
+                },
+                {
+                  label: 'Delete Space',
+                  icon: 'delete_forever',
+                  color: '#E879A2',
+                  action: confirmDeleteFolder,
+                  danger: true
+                },
               ].map((item, i) => (
                 <motion.button
                   key={item.label}
@@ -384,11 +576,8 @@ export default function FolderDetail() {
                     borderTop: i > 0 ? '1px solid rgba(196,186,203,0.12)' : 'none',
                   }}
                 >
-                  <span className="text-[18px]">{item.emoji}</span>
-                  <span
-                    className="font-headline text-[14px] font-black"
-                    style={{ color: item.danger ? '#E879A2' : '#2D1040' }}
-                  >
+                  <span className="material-symbols-rounded" style={{ fontSize: 20, color: item.color }}>{item.icon}</span>
+                  <span className="font-headline text-[14px] font-black" style={{ color: item.danger ? '#E879A2' : '#2D1040' }}>
                     {item.label}
                   </span>
                 </motion.button>
@@ -415,7 +604,10 @@ export default function FolderDetail() {
               style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(40px)', boxShadow: '0 -20px 60px rgba(45,16,64,0.1)' }}
             >
               <div className="w-14 h-1.5 rounded-full mx-auto mb-5" style={{ background: 'rgba(196,186,203,0.4)' }} />
-              <h3 className="font-headline text-[24px] font-black text-on-surface mb-5">Rename Space ✏️</h3>
+              <h3 className="font-headline text-[24px] font-black text-on-surface mb-5 flex items-center gap-2">
+                <span className="material-symbols-rounded" style={{ fontSize: 24, color: '#A78BCA' }}>edit</span>
+                Rename Space
+              </h3>
               <input
                 autoFocus
                 value={renameVal}
@@ -429,12 +621,42 @@ export default function FolderDetail() {
                 className="w-full h-[54px] rounded-[20px] font-headline font-black text-[16px] text-white"
                 style={{ background: 'linear-gradient(135deg, #F9A8D4, #E879A2)', boxShadow: '0 6px 24px rgba(232,121,162,0.4)' }}
               >
-                Save Changes 🌸
+                Save Changes
               </motion.button>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      {/* ── DELETE FILE CONFIRMATION ── */}
+      <ConfirmDialog
+        isOpen={!!deleteFileConfirm}
+        title="Delete this file?"
+        message={`"${deleteFileConfirm?.name}" will be removed from this space permanently.`}
+        confirmLabel="Delete"
+        danger={true}
+        onCancel={() => setDeleteFileConfirm(null)}
+        onConfirm={() => {
+          if (deleteFileConfirm) {
+            deleteFile(deleteFileConfirm.id);
+            setDeleteFileConfirm(null);
+          }
+        }}
+      />
+
+      {/* ── DELETE FOLDER CONFIRMATION ── */}
+      <ConfirmDialog
+        isOpen={deleteFolderConfirm}
+        title="Delete this space?"
+        message={`"${folder.name}" and all its files will be permanently removed. This cannot be undone.`}
+        confirmLabel="Delete Space"
+        danger={true}
+        onCancel={() => setDeleteFolderConfirm(false)}
+        onConfirm={() => {
+          deleteFolder(folder.id);
+          navigate('/files');
+        }}
+      />
     </main>
   );
 }

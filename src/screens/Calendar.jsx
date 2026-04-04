@@ -4,6 +4,7 @@ import { TaskContext } from '../contexts/TaskContext';
 import { MascotContext } from '../contexts/MascotContext';
 import BottomNavBar from '../components/BottomNavBar';
 import clsx from 'clsx';
+import { schedulePlanNotifications } from '../utils/notifications';
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
@@ -27,6 +28,7 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskNote, setNewTaskNote] = useState('');
   const [selectedSticker, setSelectedSticker] = useState('✨');
   const today = startOfToday();
 
@@ -45,15 +47,20 @@ export default function Calendar() {
 
   const handleQuickAdd = () => {
     if (!newTaskTitle.trim()) return;
-    addTask({ 
+    const plan = { 
       id: Date.now().toString(), 
-      title: newTaskTitle, 
+      title: newTaskTitle.trim(), 
+      note: newTaskNote.trim(),
       date: format(selectedDate, 'yyyy-MM-dd'), 
       priority: 'pink', 
       completed: false,
-      sticker: selectedSticker 
-    });
+      sticker: selectedSticker,
+      isCalendarPlan: true,
+    };
+    addTask(plan);
+    schedulePlanNotifications(plan);
     setNewTaskTitle('');
+    setNewTaskNote('');
     setSelectedSticker('✨');
     setIsQuickAddOpen(false);
     triggerRandom('proud');
@@ -285,13 +292,22 @@ export default function Calendar() {
                       }}
                     />
                     {task.sticker && <span className="text-xl leading-none">{task.sticker}</span>}
-                    <p className={clsx(
-                      'font-headline text-[14px] font-black flex-1 truncate',
-                      task.completed ? 'line-through text-on-surface-muted' : 'text-on-surface'
-                    )}>
-                      {task.title}
-                    </p>
-                    {task.completed && <span className="text-[12px]">✅</span>}
+                    <div className="flex-1 min-w-0">
+                      <p className={clsx(
+                        'font-headline text-[14px] font-black truncate',
+                        task.completed ? 'line-through text-on-surface-muted' : 'text-on-surface'
+                      )}>
+                        {task.title}
+                      </p>
+                      {task.note && (
+                        <p className="font-quicksand text-[11px] font-semibold text-on-surface-muted leading-tight mt-0.5 line-clamp-2">
+                          {task.note}
+                        </p>
+                      )}
+                    </div>
+                    {task.completed && (
+                      <span className="material-symbols-rounded shrink-0" style={{ fontSize: 16, color: '#4ECDC4' }}>check_circle</span>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -323,16 +339,27 @@ export default function Calendar() {
               }}
             >
               <h3 className="font-headline text-[22px] font-black text-on-surface text-center mb-4">
-                Plan for {format(selectedDate, 'MMM d')} 🌸
+                Plan for {format(selectedDate, 'MMM d')}
+                <span className="ml-2 material-symbols-rounded align-middle" style={{ fontSize: 22, color: monthColor }}>edit_calendar</span>
               </h3>
               <input
                 autoFocus
-                className="w-full rounded-[16px] px-4 py-3.5 font-headline text-[16px] font-black text-on-surface outline-none mb-4"
+                className="w-full rounded-[16px] px-4 py-3.5 font-headline text-[16px] font-black text-on-surface outline-none mb-3"
                 style={{ background: `${monthColor}10`, border: `2px solid ${monthColor}22` }}
-                placeholder="What's planned? ✦"
+                placeholder="What's planned?"
                 value={newTaskTitle}
                 onChange={e => setNewTaskTitle(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+              />
+
+              {/* Note field */}
+              <textarea
+                rows={2}
+                className="w-full rounded-[14px] px-4 py-3 font-quicksand text-[14px] font-semibold text-on-surface outline-none mb-4 resize-none"
+                style={{ background: 'rgba(167,139,202,0.07)', border: '1.5px solid rgba(167,139,202,0.15)' }}
+                placeholder="Add a note (optional)..."
+                value={newTaskNote}
+                onChange={e => setNewTaskNote(e.target.value)}
               />
 
               <div className="flex gap-2 overflow-x-auto no-scrollbar mb-5 pb-1 justify-between px-1">

@@ -1,18 +1,70 @@
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserContext } from '../contexts/UserContext';
+import { MascotContext } from '../contexts/MascotContext';
 import Mascot from '../components/Mascot';
 import { useNavigate } from 'react-router-dom';
 import { TaskContext } from '../contexts/TaskContext';
 import { ReminderContext } from '../contexts/ReminderContext';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Toast } from '@capacitor/toast';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 const STAT_COLORS = ['#E879A2', '#A78BCA', '#38BDF8', '#4ECDC4'];
 
+// Cute minimalist default avatar — simple round face with blush
+const KawaiiAvatar = ({ size = 96 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="48" fill="#FFE4F5"/>
+    <circle cx="50" cy="50" r="44" fill="#FFF0F7"/>
+    {/* Eyes — simple dots */}
+    <circle cx="36" cy="46" r="3.5" fill="#3D1F5C"/>
+    <circle cx="64" cy="46" r="3.5" fill="#3D1F5C"/>
+    {/* Eye shine */}
+    <circle cx="37.5" cy="44.5" r="1.2" fill="white"/>
+    <circle cx="65.5" cy="44.5" r="1.2" fill="white"/>
+    {/* Blush */}
+    <ellipse cx="28" cy="56" rx="7" ry="4" fill="#FDA4AF" opacity="0.45"/>
+    <ellipse cx="72" cy="56" rx="7" ry="4" fill="#FDA4AF" opacity="0.45"/>
+    {/* Smile */}
+    <path d="M42 58 Q50 65 58 58" stroke="#E879A2" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+  </svg>
+);
+
+// Toggle component
+const Toggle = ({ value, onChange, colorOn = '#E879A2' }) => (
+  <motion.button
+    whileTap={{ scale: 0.92 }}
+    onClick={() => onChange(!value)}
+    style={{
+      width: 52, height: 30, borderRadius: 15,
+      background: value
+        ? `linear-gradient(135deg, ${colorOn}CC, ${colorOn})`
+        : 'rgba(196,186,203,0.3)',
+      boxShadow: value ? `0 2px 12px ${colorOn}44` : 'none',
+      padding: 3,
+      position: 'relative',
+    }}
+    className="shrink-0"
+  >
+    <motion.div
+      animate={{ x: value ? 22 : 0 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      className="w-6 h-6 rounded-full bg-white"
+      style={{ boxShadow: '0 2px 8px rgba(45,16,64,0.15)' }}
+    />
+  </motion.button>
+);
+
 export default function ProfileScreen() {
   const navigate = useNavigate();
-  const { userName, setUserName, mascotSettings, setMascotSettings, notificationsEnabled, setNotificationsEnabled, profilePic, setProfilePic, alarmMode, setAlarmMode } = useContext(UserContext);
+  const {
+    userName, setUserName,
+    mascotSettings, setMascotSettings,
+    notificationsEnabled, setNotificationsEnabled,
+    profilePic, setProfilePic,
+  } = useContext(UserContext);
+  const { triggerRandom } = useContext(MascotContext);
   const { tasks } = useContext(TaskContext);
   const { reminders } = useContext(ReminderContext);
 
@@ -20,9 +72,11 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState(userName);
   const [isLoveLetterOpen, setIsLoveLetterOpen] = useState(false);
   const [activePicker, setActivePicker] = useState(null);
+  const [vibrateOnTask, setVibrateOnTask] = useState(() => localStorage.getItem('marshmallow_vibrate_enabled') === 'true');
   const nameRef = useRef(null);
 
   useEffect(() => { if (isEditingName) nameRef.current?.focus(); }, [isEditingName]);
+  useEffect(() => { localStorage.setItem('marshmallow_vibrate_enabled', vibrateOnTask); }, [vibrateOnTask]);
 
   const handleNameSave = () => {
     if (editName.trim()) setUserName(editName.trim());
@@ -36,35 +90,62 @@ export default function ProfileScreen() {
         quality: 80,
         allowEditing: true,
         resultType: CameraResultType.Base64,
-        source: CameraSource.Prompt
+        source: CameraSource.Prompt,
       });
       if (image.base64String) {
         setProfilePic(`data:image/jpeg;base64,${image.base64String}`);
-        await Toast.show({ text: 'Avatar updated perfectly! ✨', duration: 'short', position: 'top' });
+        await Toast.show({ text: 'Avatar updated!', duration: 'short', position: 'top' });
       }
-    } catch (e) {
-      console.log('User cancelled camera/gallery prompt', e);
+    } catch {
+      // User cancelled
     }
   };
 
-  const completedTasks = tasks.filter(t => t.completed).length;
-  const totalTasks = tasks.length;
-
-  const hasDoneTaskToday = tasks.some(t => t.completed); 
-  const currentStreak = hasDoneTaskToday ? 'Active 🔥' : 'Idle ☁️';
-
+  // Simplified mascot settings — only 2 options that actually change behavior
   const pickerOptions = {
-    mood:  ['Adaptive 🌈', 'Always Happy 😄', 'Extra Loving 💕', 'Chill ☁️'],
-    speed: ['Slow & Dreamy 🌙', 'Normal ✨', 'Bouncy & Peppy 🎀'],
-    idle:  ['Float Gently ☁️', 'Naptime 💤', 'Wander Around 🌸'],
+    mood: ['Happy', 'Loving', 'Playful', 'Sleepy'],
+    speed: ['Slow', 'Normal', 'Fast'],
   };
 
-  const stats = [
-    { label: 'Tasks Total', value: totalTasks,      icon: '📋' },
-    { label: 'Completed',   value: completedTasks,  icon: '✅' },
-    { label: 'Reminders',   value: reminders.length, icon: '🔔' },
-    { label: 'Streak',      value: currentStreak,    icon: '✨' },
+  const mascotSettingRows = [
+    {
+      key: 'moodPreference',
+      label: 'Mallow Mood',
+      desc: 'Default expression',
+      iconName: 'mood',
+      color: '#E879A2',
+      picker: 'mood',
+      val: mascotSettings?.moodPreference || 'Happy',
+    },
+    {
+      key: 'animationSpeed',
+      label: 'Animation Speed',
+      desc: 'How fast Mallow moves',
+      iconName: 'speed',
+      color: '#A78BCA',
+      picker: 'speed',
+      val: mascotSettings?.animationSpeed || 'Normal',
+    },
   ];
+
+  const completedTasks = tasks.filter(t => t.completed).length;
+  const totalTasks = tasks.length;
+  const hasDoneTaskToday = tasks.some(t => t.completed);
+  const currentStreak = hasDoneTaskToday ? 'Active' : 'Idle';
+
+  const stats = [
+    { label: 'Tasks', value: totalTasks, iconName: 'task_alt' },
+    { label: 'Done', value: completedTasks, iconName: 'check_circle' },
+    { label: 'Reminders', value: reminders.length, iconName: 'notifications' },
+    { label: 'Streak', value: currentStreak, iconName: 'local_fire_department' },
+  ];
+
+  const handleTestVibrate = async () => {
+    try {
+      await Haptics.vibrate({ duration: 500 });
+      await Toast.show({ text: 'Vibration test!', duration: 'short', position: 'top' });
+    } catch { /* */ }
+  };
 
   return (
     <motion.main
@@ -80,7 +161,7 @@ export default function ProfileScreen() {
         <div className="aurora-orb-3" />
       </div>
 
-      {/* ── HEADER ── */}
+      {/* HEADER */}
       <motion.header
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -104,7 +185,7 @@ export default function ProfileScreen() {
       </motion.header>
 
       <div className="flex-1 overflow-y-auto no-scrollbar relative z-10">
-        {/* ── AVATAR CARD ── */}
+        {/* AVATAR CARD */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -117,7 +198,6 @@ export default function ProfileScreen() {
             boxShadow: '0 8px 36px rgba(45,16,64,0.07)',
           }}
         >
-          {/* Avatar with ring */}
           <div className="relative mb-4">
             <motion.div
               animate={{ rotate: 360 }}
@@ -135,18 +215,17 @@ export default function ProfileScreen() {
               className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white cursor-pointer"
               style={{ boxShadow: '0 4px 20px rgba(45,16,64,0.12)' }}
             >
-              <img
-                src={profilePic || `https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${userName || 'marshmallow'}&backgroundColor=fff5fa`}
-                className="w-full h-full object-cover scale-110"
-                alt="avatar"
-              />
+              {profilePic ? (
+                <img src={profilePic} className="w-full h-full object-cover" alt="avatar" />
+              ) : (
+                <KawaiiAvatar size={96} />
+              )}
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                 <span className="material-symbols-rounded text-white" style={{ fontSize: 28 }}>photo_camera</span>
               </div>
             </motion.div>
           </div>
 
-          {/* Editable name */}
           {isEditingName ? (
             <div className="flex flex-col items-center gap-3 w-full">
               <input
@@ -158,7 +237,7 @@ export default function ProfileScreen() {
                 className="w-full text-center font-headline text-[26px] font-black text-on-surface outline-none rounded-[16px] py-2 px-4"
                 style={{ background: 'rgba(232,121,162,0.07)', border: '2px solid rgba(232,121,162,0.2)' }}
               />
-              <p className="font-quicksand text-[11px] font-bold text-on-surface-muted">Tap outside to save ✦</p>
+              <p className="font-quicksand text-[11px] font-bold text-on-surface-muted">Tap outside to save</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
@@ -176,7 +255,7 @@ export default function ProfileScreen() {
           )}
         </motion.div>
 
-        {/* ── STATS ROW ── */}
+        {/* STATS ROW */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -193,14 +272,14 @@ export default function ProfileScreen() {
                 border: '1.5px solid rgba(255,255,255,0.9)',
               }}
             >
-              <span className="text-xl mb-1">{s.icon}</span>
-              <span className="font-headline text-[18px] font-black" style={{ color: STAT_COLORS[i] }}>{s.value}</span>
+              <span className="material-symbols-rounded mb-1" style={{ fontSize: 20, color: STAT_COLORS[i] }}>{s.iconName}</span>
+              <span className="font-headline text-[16px] font-black" style={{ color: STAT_COLORS[i] }}>{s.value}</span>
               <span className="font-quicksand text-[8px] font-bold text-on-surface-muted uppercase tracking-wide leading-none">{s.label}</span>
             </div>
           ))}
         </motion.div>
 
-        {/* ── MASCOT SETTINGS ── */}
+        {/* MALLOW EXPERIENCE */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -208,35 +287,42 @@ export default function ProfileScreen() {
           className="mx-5 mt-5"
         >
           <p className="font-headline text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-muted mb-3 ml-1 flex items-center gap-2">
-            <span>✨</span> Mallow Experience
+            <span className="material-symbols-rounded" style={{ fontSize: 14, color: '#E879A2' }}>auto_awesome</span>
+            Mallow Experience
           </p>
           <div
-            className="rounded-[24px] overflow-hidden divide-y"
+            className="rounded-[24px] overflow-hidden"
             style={{
               background: 'rgba(255,255,255,0.85)',
               backdropFilter: 'blur(30px)',
               border: '1.5px solid rgba(255,255,255,0.95)',
-              divideColor: 'rgba(232,121,162,0.06)',
             }}
           >
-            {[
-              { key: 'moodPreference', label: 'Mood Vibes', icon: '🌈', picker: 'mood', val: mascotSettings?.moodPreference || 'Adaptive' },
-              { key: 'animationSpeed', label: 'Magic Pacing', icon: '✨', picker: 'speed', val: mascotSettings?.animationSpeed || 'Normal' },
-              { key: 'idleBehavior',   label: 'Idle Style', icon: '☁️', picker: 'idle',  val: mascotSettings?.idleBehavior || 'Float Gently' },
-            ].map(s => (
+            {mascotSettingRows.map((s, i) => (
               <motion.button
                 key={s.key}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setActivePicker(s.picker)}
                 className="w-full flex items-center justify-between px-5 py-4 transition-all"
-                style={{ background: 'transparent' }}
+                style={{
+                  background: 'transparent',
+                  borderTop: i > 0 ? '1px solid rgba(196,186,203,0.12)' : 'none',
+                }}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-[18px]">{s.icon}</span>
-                  <span className="font-headline text-[15px] font-black text-on-surface">{s.label}</span>
+                  <div
+                    className="w-9 h-9 rounded-[12px] flex items-center justify-center"
+                    style={{ background: `${s.color}15` }}
+                  >
+                    <span className="material-symbols-rounded" style={{ fontSize: 18, color: s.color }}>{s.iconName}</span>
+                  </div>
+                  <div className="text-left">
+                    <span className="font-headline text-[15px] font-black text-on-surface block">{s.label}</span>
+                    <span className="font-quicksand text-[10px] font-semibold text-on-surface-muted">{s.desc}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-headline text-[10px] font-black uppercase tracking-widest text-on-surface-muted">
+                  <span className="font-headline text-[10px] font-black uppercase tracking-widest" style={{ color: s.color }}>
                     {s.val}
                   </span>
                   <span className="material-symbols-rounded text-on-surface-muted" style={{ fontSize: 16 }}>chevron_right</span>
@@ -246,7 +332,7 @@ export default function ProfileScreen() {
           </div>
         </motion.div>
 
-        {/* ── PREFERENCES ── */}
+        {/* NOTIFICATION PREFERENCES */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -254,144 +340,55 @@ export default function ProfileScreen() {
           className="mx-5 mt-5"
         >
           <p className="font-headline text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-muted mb-3 ml-1 flex items-center gap-2">
-            <span>⚙️</span> Application Settings
+            <span className="material-symbols-rounded" style={{ fontSize: 14, color: '#A78BCA' }}>notifications</span>
+            Alerts & Alarm
           </p>
           <div
-            className="rounded-[24px] overflow-hidden divide-y"
+            className="rounded-[24px] overflow-hidden"
             style={{
               background: 'rgba(255,255,255,0.85)',
               backdropFilter: 'blur(30px)',
               border: '1.5px solid rgba(255,255,255,0.95)',
-              divideColor: 'rgba(232,121,162,0.08)',
             }}
           >
-            {/* 🛡️ Hardware Debug */}
-            <div className="px-5 py-5 bg-[rgba(232,121,162,0.03)]">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🛡️</span>
-                  <span className="font-headline text-[15px] font-black text-on-surface">Hardware Debug</span>
+            {/* Push Notifications */}
+            <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: 'rgba(196,186,203,0.12)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[12px] flex items-center justify-center" style={{ background: 'rgba(232,121,162,0.1)' }}>
+                  <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#E879A2' }}>notifications_active</span>
                 </div>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={async () => {
-                    const { testNativeAlert } = await import('../utils/notifications');
-                    await testNativeAlert();
-                    await Toast.show({ text: 'Test fired! ⚡ Vibrate and sound in 3s!', duration: 'long', position: 'top' });
-                  }}
-                  className="px-4 py-1.5 rounded-full font-headline text-[10px] font-black uppercase tracking-wider text-white"
-                  style={{ background: 'linear-gradient(135deg, #E879A2, #BE185D)' }}
-                >
-                  Run Test
-                </motion.button>
+                <div>
+                  <p className="font-headline text-[15px] font-black text-on-surface">Push Notifications</p>
+                  <p className="font-quicksand text-[11px] font-semibold text-on-surface-muted">Task reminders & wellness pings</p>
+                </div>
               </div>
-              <p className="font-quicksand text-[11px] font-medium text-on-surface-muted leading-relaxed">
-                If the test fails, ensure <span className="font-bold">Marshmallow</span> has "Exact Alarms" and "Notifications" enabled in Android Settings. ✨
-              </p>
+              <Toggle value={notificationsEnabled} onChange={setNotificationsEnabled} colorOn="#E879A2" />
             </div>
 
-            <div className="flex items-center justify-between px-5 py-4">
+            {/* Vibration on task */}
+            <div className="px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-[18px]">🔔</span>
-                <span className="font-headline text-[15px] font-black text-on-surface">Enable Alerts</span>
+                <div className="w-9 h-9 rounded-[12px] flex items-center justify-center" style={{ background: 'rgba(167,139,202,0.1)' }}>
+                  <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#A78BCA' }}>vibration</span>
+                </div>
+                <div>
+                  <p className="font-headline text-[15px] font-black text-on-surface">Vibrate on Task Time</p>
+                  <p className="font-quicksand text-[11px] font-semibold text-on-surface-muted">Continuous vibration when task arrives</p>
+                </div>
               </div>
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                className="w-12 h-6 rounded-full relative p-1 transition-colors"
-                style={{ background: notificationsEnabled ? '#E879A2' : '#C4B5CB' }}
-              >
-                <motion.div
-                  className="w-4 h-4 rounded-full bg-white shadow-sm"
-                  animate={{ x: notificationsEnabled ? 24 : 0 }}
-                />
-              </motion.button>
+              <Toggle
+                value={vibrateOnTask}
+                onChange={(v) => {
+                  setVibrateOnTask(v);
+                  if (v) handleTestVibrate();
+                }}
+                colorOn="#A78BCA"
+              />
             </div>
           </div>
         </motion.div>
 
-        {/* ── PREFERENCES ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mx-5 mt-5"
-        >
-          <p className="font-headline text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-muted mb-3 ml-1 flex items-center gap-2">
-            <span>🔔</span> Preferences
-          </p>
-          <div
-            className="rounded-[24px] overflow-hidden divide-y"
-            style={{
-              background: 'rgba(255,255,255,0.85)',
-              backdropFilter: 'blur(30px)',
-              border: '1.5px solid rgba(255,255,255,0.95)',
-              divideColor: 'rgba(232,121,162,0.06)',
-            }}
-          >
-            {/* Alarm Mode row */}
-            <div className="px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-[18px]">{alarmMode === 'ring' ? '🔊' : '📳'}</span>
-                <div>
-                  <p className="font-headline text-[15px] font-black text-on-surface">Alarm Mode</p>
-                  <p className="font-quicksand text-[11px] font-semibold text-on-surface-muted">
-                    {alarmMode === 'ring' ? 'Loud 30s Ring' : 'Continuous 30s Vibrate'}
-                  </p>
-                </div>
-              </div>
-              <motion.button
-                whileTap={{ scale: 0.92 }}
-                onClick={() => setAlarmMode(alarmMode === 'ring' ? 'vibrate' : 'ring')}
-                style={{
-                  width: 52, height: 30, borderRadius: 15,
-                  background: alarmMode === 'ring' ? 'linear-gradient(135deg, #F9A8D4, #E879A2)' : 'rgba(196,186,203,0.3)',
-                  boxShadow: alarmMode === 'ring' ? '0 2px 12px rgba(232,121,162,0.4)' : 'none',
-                  padding: 3,
-                }}
-                className="relative"
-              >
-                <motion.div
-                  animate={{ x: alarmMode === 'ring' ? 22 : 0 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className="w-6 h-6 rounded-full bg-white"
-                  style={{ boxShadow: '0 2px 8px rgba(45,16,64,0.15)' }}
-                />
-              </motion.button>
-            </div>
-
-            {/* Haptics row */}
-            <div className="px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-[18px]">✨</span>
-                <div>
-                  <p className="font-headline text-[15px] font-black text-on-surface">Haptic Feedback</p>
-                  <p className="font-quicksand text-[11px] font-semibold text-on-surface-muted">Gentle tap vibrations</p>
-                </div>
-              </div>
-              <motion.button
-                whileTap={{ scale: 0.92 }}
-                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                style={{
-                  width: 52, height: 30, borderRadius: 15,
-                  background: notificationsEnabled ? 'linear-gradient(135deg, #7DD3FC, #38BDF8)' : 'rgba(196,186,203,0.3)',
-                  boxShadow: notificationsEnabled ? '0 2px 12px rgba(56,189,248,0.4)' : 'none',
-                  padding: 3,
-                }}
-                className="relative"
-              >
-                <motion.div
-                  animate={{ x: notificationsEnabled ? 22 : 0 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className="w-6 h-6 rounded-full bg-white"
-                  style={{ boxShadow: '0 2px 8px rgba(45,16,64,0.15)' }}
-                />
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ── SECRET LOVE LETTER ── */}
+        {/* SECRET LOVE LETTER */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -411,16 +408,16 @@ export default function ProfileScreen() {
             <motion.div
               animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1] }}
               transition={{ duration: 4, repeat: Infinity }}
-              className="w-14 h-14 rounded-[18px] flex items-center justify-center text-2xl shrink-0"
+              className="w-14 h-14 rounded-[18px] flex items-center justify-center shrink-0"
               style={{ background: 'rgba(255,255,255,0.7)' }}
             >
-              💌
+              <span className="material-symbols-rounded" style={{ fontSize: 32, color: '#E879A2' }}>favorite</span>
             </motion.div>
             <div className="text-left">
               <h4 className="font-headline text-[17px] font-black" style={{ color: '#BE185D' }}>
                 A Secret Note
               </h4>
-              <p className="font-quicksand text-[12px] font-semibold text-on-surface-muted">Open with love 💕</p>
+              <p className="font-quicksand text-[12px] font-semibold text-on-surface-muted">Open with love</p>
             </div>
             <div className="ml-auto">
               <span className="material-symbols-rounded" style={{ color: '#E879A2', fontSize: 20 }}>chevron_right</span>
@@ -430,12 +427,12 @@ export default function ProfileScreen() {
 
         {/* Footer */}
         <div className="text-center py-10 opacity-20">
-          <p className="font-headline text-[10px] uppercase tracking-[0.5em] font-black">Marshmallow ✨</p>
-          <p className="font-headline text-[9px] uppercase tracking-[0.3em] mt-1 italic font-black">crafted with love 💕</p>
+          <p className="font-headline text-[10px] uppercase tracking-[0.5em] font-black">Marshmallow</p>
+          <p className="font-headline text-[9px] uppercase tracking-[0.3em] mt-1 italic font-black">crafted with love</p>
         </div>
       </div>
 
-      {/* ── LOVE LETTER MODAL ── */}
+      {/* LOVE LETTER MODAL */}
       <AnimatePresence>
         {isLoveLetterOpen && (
           <motion.div
@@ -455,19 +452,16 @@ export default function ProfileScreen() {
                 border: '6px solid #FFE4F5',
               }}
             >
-              {/* Confetti decor */}
-              {['🌸', '✨', '💕', '⭐', '🎀'].map((e, i) => (
+              {['favorite', 'auto_awesome', 'local_florist', 'star', 'cake'].map((icon, i) => (
                 <motion.div
                   key={i}
                   animate={{ y: [0, -8, 0], rotate: [-5, 5, -5] }}
                   transition={{ duration: 3 + i, repeat: Infinity }}
-                  className="absolute text-[16px] pointer-events-none"
-                  style={{
-                    top: `${10 + i * 15}%`,
-                    left: i % 2 === 0 ? '5%' : '88%',
-                    opacity: 0.6,
-                  }}
-                >{e}</motion.div>
+                  className="absolute pointer-events-none"
+                  style={{ top: `${10 + i * 15}%`, left: i % 2 === 0 ? '5%' : '88%', opacity: 0.6 }}
+                >
+                  <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#E879A2' }}>{icon}</span>
+                </motion.div>
               ))}
 
               <div className="mb-5 -mt-2">
@@ -479,20 +473,20 @@ export default function ProfileScreen() {
                 className="font-headline text-[28px] font-black text-center mb-4"
                 style={{ color: '#BE185D' }}
               >
-                Hey Sunshine ☀️
+                Hey my baby
               </motion.h3>
               <motion.p
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
                 className="font-body text-[15px] text-on-surface-variant leading-relaxed text-center font-semibold mb-3"
               >
-                I made this little universe just for you. Every pixel was crafted to make you smile every single day.
+                I made this little universe just for you, my baby. Every pixel was crafted to make you smile every single day.
               </motion.p>
               <motion.p
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.0 }}
                 className="font-quicksand text-[14px] font-bold text-center italic"
                 style={{ color: '#E879A2' }}
               >
-                You're the center of my favorite stories. 💕
+                You are my center of gravity. Always. — Ankii
               </motion.p>
 
               <motion.button
@@ -504,14 +498,14 @@ export default function ProfileScreen() {
                 className="w-full mt-7 h-[54px] rounded-[20px] font-headline font-black text-[16px] text-white"
                 style={{ background: 'linear-gradient(135deg, #F9A8D4, #E879A2, #BE185D)', boxShadow: '0 6px 24px rgba(232,121,162,0.4)' }}
               >
-                Keep it in my heart 🤍
+                Keep it in my heart
               </motion.button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── PICKER SHEET ── */}
+      {/* PICKER SHEET */}
       <AnimatePresence>
         {activePicker && (
           <>
@@ -529,18 +523,21 @@ export default function ProfileScreen() {
             >
               <div className="w-14 h-1.5 rounded-full mx-auto mb-5" style={{ background: 'rgba(196,186,203,0.4)' }} />
               <h2 className="font-headline text-[22px] font-black text-on-surface mb-5">
-                {{mood: 'Mood Vibes 🌈', speed: 'Magic Pacing ✨', idle: 'Idle Style ☁️'}[activePicker]}
+                {{ mood: 'Mallow Mood', speed: 'Animation Speed' }[activePicker]}
               </h2>
               <div className="space-y-2">
                 {pickerOptions[activePicker].map(opt => {
-                  const settingKey = activePicker === 'mood' ? 'moodPreference' : activePicker === 'speed' ? 'animationSpeed' : 'idleBehavior';
+                  const settingKey = activePicker === 'mood' ? 'moodPreference' : 'animationSpeed';
                   const isActive = mascotSettings?.[settingKey] === opt;
                   return (
                     <motion.button
                       key={opt}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => {
-                        setMascotSettings(p => ({ ...p, [settingKey]: opt }));
+                        const updated = { ...mascotSettings, [settingKey]: opt };
+                        setMascotSettings(updated);
+                        localStorage.setItem('marshmallow_settings', JSON.stringify(updated));
+                        triggerRandom(activePicker === 'mood' ? opt.toLowerCase() : 'happy');
                         setActivePicker(null);
                       }}
                       className="w-full flex items-center justify-between px-5 py-4 rounded-[18px] transition-all"
