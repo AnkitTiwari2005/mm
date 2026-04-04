@@ -64,9 +64,35 @@ const MOTIVATION = [
   "If no one has told you today, I believe in you completely! 🌟"
 ];
 
+// All possible emotes for the mascot images
+const EMOTES = ['happy', 'excited', 'loving', 'playful', 'proud', 'sad', 'sleepy', 'thinking'];
+
+// Map categories to possible emotes (weighted randomness)
+const CATEGORY_EMOTES = {
+  jokes: ['playful', 'excited', 'happy', 'playful'],
+  loving: ['loving', 'loving', 'happy', 'excited'],
+  motivation: ['proud', 'excited', 'happy', 'proud'],
+  greeting: ['happy', 'excited', 'loving'],
+  thinking: ['thinking', 'thinking', 'playful'],
+  sleepy: ['sleepy', 'sleepy', 'thinking'],
+  sad: ['sad', 'sad', 'thinking'],
+};
+
+const getTimeGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 5) return { text: "You're up late! Get some rest soon, okay? 🌙", emote: 'sleepy' };
+  if (h < 9) return { text: "Good morning, sunshine! Ready to make today amazing? ☀️", emote: 'happy' };
+  if (h < 12) return { text: "Hey! Hope your morning is going great 🌸", emote: 'excited' };
+  if (h < 15) return { text: "Good afternoon! You're doing so well today 💕", emote: 'proud' };
+  if (h < 18) return { text: "Hey there! Almost evening, take a little break 🍬", emote: 'playful' };
+  if (h < 21) return { text: "Good evening! Time to wind down and relax 🌅", emote: 'loving' };
+  return { text: "It's getting late! Don't forget to take care of yourself 🌙", emote: 'sleepy' };
+};
+
 export const MascotProvider = ({ children }) => {
-  const [currentEmote, setCurrentEmote] = useState('happy'); // 'happy', 'excited', 'sleepy', 'loving', 'playful', 'thinking', 'proud', 'dramatic'
-  const [currentMessage, setCurrentMessage] = useState("Good morning! 🌸");
+  const greeting = getTimeGreeting();
+  const [currentEmote, setCurrentEmote] = useState(greeting.emote);
+  const [currentMessage, setCurrentMessage] = useState(greeting.text);
   const [isMessageVisible, setMessageVisible] = useState(true);
 
   const getRandomMessage = (category) => {
@@ -74,10 +100,14 @@ export const MascotProvider = ({ children }) => {
     if (category === 'jokes') pool = JOKES;
     else if (category === 'loving') pool = LOVING;
     else if (category === 'motivation') pool = MOTIVATION;
-    else pool = [...LOVING, ...MOTIVATION]; // default mixed
+    else pool = [...LOVING, ...MOTIVATION];
 
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    return pool[randomIndex];
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+
+  const pickEmoteForCategory = (category) => {
+    const emotes = CATEGORY_EMOTES[category] || EMOTES;
+    return emotes[Math.floor(Math.random() * emotes.length)];
   };
 
   const [timerId, setTimerId] = useState(null);
@@ -91,16 +121,13 @@ export const MascotProvider = ({ children }) => {
 
     const newTimer = setTimeout(() => {
       setMessageVisible(false);
-    }, 6000);
+    }, 7000);
     setTimerId(newTimer);
   }, [timerId]);
 
   const triggerRandom = useCallback((category) => {
-    let text = getRandomMessage(category);
-    let emote = 'happy';
-    if (category === 'jokes') emote = 'playful';
-    if (category === 'loving') emote = 'loving';
-    if (category === 'motivation') emote = 'proud';
+    const text = getRandomMessage(category);
+    const emote = pickEmoteForCategory(category);
     triggerMessage(text, emote);
   }, [triggerMessage]);
 
@@ -109,7 +136,8 @@ export const MascotProvider = ({ children }) => {
       currentEmote, setCurrentEmote,
       currentMessage, setCurrentMessage,
       isMessageVisible, setMessageVisible,
-      triggerMessage, triggerRandom
+      triggerMessage, triggerRandom,
+      EMOTES,
     }}>
       {children}
     </MascotContext.Provider>
