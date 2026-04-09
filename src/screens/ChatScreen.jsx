@@ -9,6 +9,30 @@ import BottomNavBar from '../components/BottomNavBar';
 //  CHAT SCREEN — Mallow AI + Our Space 💬
 // ════════════════════════════════════════════
 
+// Cute kawaii marshmallow SVG icon for the Mallow tab
+const MallowIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="50" cy="55" rx="32" ry="38" fill="white" stroke="currentColor" strokeWidth="2" />
+    <ellipse cx="50" cy="55" rx="32" ry="38" fill="url(#mallow-grad)" />
+    <ellipse cx="38" cy="48" rx="4" ry="4.5" fill="#2D1040" />
+    <ellipse cx="62" cy="48" rx="4" ry="4.5" fill="#2D1040" />
+    <circle cx="39" cy="46" r="1.5" fill="white" />
+    <circle cx="63" cy="46" r="1.5" fill="white" />
+    <ellipse cx="30" cy="58" rx="7" ry="5" fill="#FDA4AF" opacity="0.45" />
+    <ellipse cx="70" cy="58" rx="7" ry="5" fill="#FDA4AF" opacity="0.45" />
+    <path d="M42 62 Q50 70 58 62" stroke="#E879A2" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+    <defs><linearGradient id="mallow-grad" x1="50" y1="17" x2="50" y2="93"><stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="#FFF0F7" /></linearGradient></defs>
+  </svg>
+);
+
+// Heart SVG icon for the header
+const HeartIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="url(#heart-grad)" />
+    <defs><linearGradient id="heart-grad" x1="2" y1="3" x2="22" y2="21"><stop offset="0%" stopColor="#F9A8D4" /><stop offset="100%" stopColor="#E879A2" /></linearGradient></defs>
+  </svg>
+);
+
 const LS_MALLOW_HISTORY = 'marshmallow_chat_mallow';
 
 export default function ChatScreen() {
@@ -116,7 +140,7 @@ export default function ChatScreen() {
           {/* Title */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <span className="text-xl">{mode === 'mallow' ? '🍬' : '💕'}</span>
+              {mode === 'mallow' ? <HeartIcon size={24} /> : <span className="text-xl">💕</span>}
               <h1 className="font-headline text-[18px] font-extrabold text-on-surface">
                 {mode === 'mallow' ? 'Mallow' : 'Our Space'}
               </h1>
@@ -141,7 +165,7 @@ export default function ChatScreen() {
             background: 'rgba(45,16,64,0.04)', border: '1px solid rgba(232,121,162,0.08)',
           }}>
             {[
-              { id: 'mallow', label: '🤖 Mallow', color: '#A78BCA' },
+              { id: 'mallow', label: 'Mallow', icon: 'mallow', color: '#A78BCA' },
               { id: 'shared', label: '💕 Our Space', color: '#E879A2' },
             ].map(tab => (
               <motion.button
@@ -157,7 +181,13 @@ export default function ChatScreen() {
                   boxShadow: mode === tab.id ? `0 4px 16px ${tab.color}33` : 'none',
                 }}
               >
-                {tab.label}
+                <span className="flex items-center gap-1.5 justify-center">
+                  {tab.icon === 'mallow'
+                    ? <MallowIcon size={16} />
+                    : <span>💕</span>
+                  }
+                  {tab.label}
+                </span>
               </motion.button>
             ))}
           </div>
@@ -172,7 +202,7 @@ export default function ChatScreen() {
         {/* Empty state */}
         {activeMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-3 opacity-60">
-            <span className="text-5xl">{mode === 'mallow' ? '🍬' : '💕'}</span>
+            {mode === 'mallow' ? <MallowIcon size={64} /> : <span className="text-5xl">💕</span>}
             <p className="font-quicksand text-[14px] text-on-surface-muted text-center font-semibold max-w-[200px]">
               {mode === 'mallow'
                 ? "Say hi to Mallow! I'll reply with all the love 💕"
@@ -271,7 +301,7 @@ export default function ChatScreen() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={mode === 'mallow' ? 'Talk to Mallow... 🍬' : 'Send a message... 💕'}
+              placeholder={mode === 'mallow' ? 'Talk to Mallow... 💗' : 'Send a message... 💕'}
               rows={1}
               className="flex-1 bg-transparent font-body text-[14px] text-on-surface px-3 py-2 resize-none outline-none placeholder:text-on-surface-muted"
               style={{ maxHeight: 100, minHeight: 38, lineHeight: '1.4' }}
