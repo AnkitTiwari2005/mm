@@ -9,19 +9,26 @@ import BottomNavBar from '../components/BottomNavBar';
 //  CHAT SCREEN — Mallow AI + Our Space 💬
 // ════════════════════════════════════════════
 
-// Cute kawaii marshmallow SVG icon for the Mallow tab
+// Cherry blossom (sakura) SVG icon for the Mallow tab 🌸
 const MallowIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="50" cy="55" rx="32" ry="38" fill="white" stroke="currentColor" strokeWidth="2" />
-    <ellipse cx="50" cy="55" rx="32" ry="38" fill="url(#mallow-grad)" />
-    <ellipse cx="38" cy="48" rx="4" ry="4.5" fill="#2D1040" />
-    <ellipse cx="62" cy="48" rx="4" ry="4.5" fill="#2D1040" />
-    <circle cx="39" cy="46" r="1.5" fill="white" />
-    <circle cx="63" cy="46" r="1.5" fill="white" />
-    <ellipse cx="30" cy="58" rx="7" ry="5" fill="#FDA4AF" opacity="0.45" />
-    <ellipse cx="70" cy="58" rx="7" ry="5" fill="#FDA4AF" opacity="0.45" />
-    <path d="M42 62 Q50 70 58 62" stroke="#E879A2" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-    <defs><linearGradient id="mallow-grad" x1="50" y1="17" x2="50" y2="93"><stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="#FFF0F7" /></linearGradient></defs>
+  <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* 5 petals */}
+    <ellipse cx="32" cy="14" rx="9" ry="14" fill="url(#petal-g)" transform="rotate(0 32 32)" />
+    <ellipse cx="32" cy="14" rx="9" ry="14" fill="url(#petal-g)" transform="rotate(72 32 32)" />
+    <ellipse cx="32" cy="14" rx="9" ry="14" fill="url(#petal-g)" transform="rotate(144 32 32)" />
+    <ellipse cx="32" cy="14" rx="9" ry="14" fill="url(#petal-g)" transform="rotate(216 32 32)" />
+    <ellipse cx="32" cy="14" rx="9" ry="14" fill="url(#petal-g)" transform="rotate(288 32 32)" />
+    {/* Center */}
+    <circle cx="32" cy="32" r="6" fill="#FCD34D" />
+    <circle cx="30" cy="30" r="1.5" fill="#F59E0B" opacity="0.6" />
+    <circle cx="34" cy="31" r="1" fill="#F59E0B" opacity="0.5" />
+    <circle cx="31" cy="34" r="1.2" fill="#F59E0B" opacity="0.5" />
+    <defs>
+      <linearGradient id="petal-g" x1="32" y1="0" x2="32" y2="28">
+        <stop offset="0%" stopColor="#FBCFE8" />
+        <stop offset="100%" stopColor="#F9A8D4" />
+      </linearGradient>
+    </defs>
   </svg>
 );
 
