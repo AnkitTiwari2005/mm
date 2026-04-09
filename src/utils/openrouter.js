@@ -1,7 +1,10 @@
 // ════════════════════════════════════════════
 //  OpenRouter API Client — Mallow Chatbot 💗
+//  Uses CapacitorHttp to bypass CORS in WebView
 //  Model: openai/gpt-3.5-turbo (confirmed working)
 // ════════════════════════════════════════════
+
+import { CapacitorHttp } from '@capacitor/core';
 
 const API_KEY = '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';
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -25,25 +28,25 @@ export const chatWithMallow = async (userMessage, chatHistory = []) => {
   ];
 
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
+    // Use CapacitorHttp — makes native HTTP requests, completely bypasses CORS
+    const response = await CapacitorHttp.post({
+      url: API_URL,
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      data: {
         model: MODEL,
-        messages: messages
-      }),
+        messages: messages,
+      },
     });
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('OpenRouter error:', err);
+    if (response.status !== 200) {
+      console.error('OpenRouter error:', response.status, response.data);
       return "Oops, I'm having a little hiccup right now 🥺 Try again? 💕";
     }
 
-    const data = await res.json();
+    const data = response.data;
     return data.choices?.[0]?.message?.content || "I'm feeling shy right now 🫣💕";
   } catch (e) {
     console.error('Mallow chat error:', e);
