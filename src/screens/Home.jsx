@@ -52,6 +52,31 @@ export default function Home() {
   const { triggerRandom } = useContext(MascotContext);
   const navigate = useNavigate();
   const greeting = getGreeting();
+  
+  // Custom Long Press logic for Mascot
+  const pressTimer = React.useRef(null);
+  const isLongPress = React.useRef(false);
+
+  const handleMascotPointerDown = () => {
+    isLongPress.current = false;
+    pressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      navigate('/mascot');
+    }, 550); // 550ms for a long press
+  };
+
+  const handleMascotPointerUpOrLeave = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  };
+
+  const handleMascotClick = () => {
+    if (!isLongPress.current) {
+      triggerRandom('loving');
+    }
+  };
 
   const todayTasks = useMemo(() => {
     const today = startOfToday();
@@ -192,7 +217,12 @@ export default function Home() {
             boxShadow: '0 8px 40px rgba(232,121,162,0.10), 0 2px 8px rgba(45,16,64,0.04)',
           }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => triggerRandom('loving')}
+          onPointerDown={handleMascotPointerDown}
+          onPointerUp={handleMascotPointerUpOrLeave}
+          onPointerLeave={handleMascotPointerUpOrLeave}
+          onPointerCancel={handleMascotPointerUpOrLeave}
+          onClick={handleMascotClick}
+          style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
         >
           {/* Clean interior layer for background graphics */}
           <div className="absolute inset-0 rounded-[36px] overflow-hidden pointer-events-none">
@@ -239,8 +269,8 @@ export default function Home() {
                 />
               ))}
             </div>
-            <p className="font-quicksand text-[10px] font-bold text-on-surface-muted uppercase tracking-[0.25em]">
-              Tap Mallow to chat ✨
+            <p className="font-quicksand text-[10px] font-bold text-on-surface-muted uppercase tracking-[0.25em] text-center px-4">
+              Tap to emote ✨ Hold to open
             </p>
           </div>
         </motion.div>

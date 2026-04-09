@@ -29,15 +29,11 @@ export const chatWithMallow = async (userMessage, chatHistory = []) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://marshmallow.app',
-        'X-Title': 'Marshmallow Companion',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: MODEL,
-        messages,
-        max_tokens: 150,
-        temperature: 0.85,
+        messages: messages
       }),
     });
 

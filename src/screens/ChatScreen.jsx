@@ -48,6 +48,7 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
+  const dummyRef = useRef(null);
 
   // ── Mallow Chat State ──
   const [mallowMessages, setMallowMessages] = useState(() => {
@@ -85,9 +86,9 @@ export default function ChatScreen() {
   // Auto-scroll on new messages
   useEffect(() => {
     setTimeout(() => {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+      dummyRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
-  }, [mallowMessages, sharedMessages, mode]);
+  }, [mallowMessages, sharedMessages, mode, isTyping]);
 
   // ── Send Message ──
   const handleSend = useCallback(async () => {
@@ -173,7 +174,7 @@ export default function ChatScreen() {
           }}>
             {[
               { id: 'mallow', label: 'Mallow', icon: 'mallow', color: '#A78BCA' },
-              { id: 'shared', label: '💕 Our Space', color: '#E879A2' },
+              { id: 'shared', label: 'Our Space', color: '#E879A2' },
             ].map(tab => (
               <motion.button
                 key={tab.id}
@@ -293,6 +294,9 @@ export default function ChatScreen() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Dummy div for auto-scroll */}
+        <div ref={dummyRef} style={{ height: 1 }} />
       </div>
 
       {/* ── INPUT BAR ── */}
