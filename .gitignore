@@ -39,3 +39,7 @@ android/capacitor-cordova-android-plugins
 
 # Capacitor
 capacitor.config.json.tmp
+
+# API keys
+.env
+.env.local

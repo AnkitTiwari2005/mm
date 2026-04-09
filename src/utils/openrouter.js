@@ -6,7 +6,7 @@
 
 import { CapacitorHttp } from '@capacitor/core';
 
-const API_KEY = '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';
+const API_KEY = import.meta.env.VITE_OPENROUTER_KEY;
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'openai/gpt-3.5-turbo';
 
