@@ -65,8 +65,17 @@ const MOTIVATION = [
 ];
 
 export const MascotProvider = ({ children }) => {
-  const [currentEmote, setCurrentEmote] = useState('happy'); // 'happy', 'excited', 'sleepy', 'loving', 'playful', 'thinking', 'proud', 'dramatic'
-  const [currentMessage, setCurrentMessage] = useState("Good morning! 🌸");
+  const getTimeGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 5)  return "Hey night owl 🌙";
+    if (h < 12) return "Good morning! 🌸";
+    if (h < 17) return "Good afternoon! ☀️";
+    if (h < 21) return "Good evening! 🌅";
+    return "Good night! ⭐";
+  };
+
+  const [currentEmote, setCurrentEmote] = useState('happy');
+  const [currentMessage, setCurrentMessage] = useState(getTimeGreeting());
   const [isMessageVisible, setMessageVisible] = useState(true);
 
   const getRandomMessage = (category) => {

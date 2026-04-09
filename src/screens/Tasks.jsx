@@ -125,7 +125,7 @@ export default function Tasks() {
       <motion.header
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="px-6 pt-14 pb-2 flex justify-between items-center relative z-10"
+        className="px-6 pt-14 pb-2 flex justify-between items-center relative z-20"
       >
         <div>
           <h1 className="font-headline text-[38px] font-black text-on-surface leading-none">Tasks</h1>
@@ -214,7 +214,7 @@ export default function Tasks() {
       </div>
 
       {/* ── TASK LIST ── */}
-      <div className="flex-1 px-6 mt-5 relative z-10">
+      <div className="flex-1 px-6 mt-5 relative z-[5]">
         <AnimatePresence mode="popLayout">
           {filteredAndSortedTasks.length === 0 ? (
             <motion.div
