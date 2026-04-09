@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const navItems = [
   { id: 'home',   icon: 'home',       label: 'Home',   path: '/home' },
   { id: 'tasks',  icon: 'checklist',  label: 'Tasks',  path: '/tasks' },
-  { id: 'mascot', icon: 'auto_awesome', label: '',     path: '/mascot', center: true },
+  { id: 'chat',   icon: 'chat_bubble', label: '',      path: '/chat', center: true },
   { id: 'calendar', icon: 'calendar_month', label: 'Calendar', path: '/calendar' },
   { id: 'files',  icon: 'folder_special', label: 'Files', path: '/files' },
 ];

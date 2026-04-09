@@ -10,6 +10,7 @@ import FolderDetail from './screens/FolderDetail';
 import MascotScreen from './screens/MascotScreen';
 import RemindersScreen from './screens/RemindersScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import ChatScreen from './screens/ChatScreen';
 
 import { UserProvider } from './contexts/UserContext';
 import { TaskProvider } from './contexts/TaskContext';
@@ -59,6 +60,7 @@ export default function App() {
                   <Route path="/mascot" element={<MascotScreen />} />
                   <Route path="/reminders" element={<RemindersScreen />} />
                   <Route path="/profile" element={<ProfileScreen />} />
+                  <Route path="/chat" element={<ChatScreen />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </BrowserRouter>
