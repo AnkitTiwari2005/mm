@@ -1,8 +1,7 @@
-const { initializeApp, cert, getApps } = require("firebase-admin/app");
-const { getMessaging } = require("firebase-admin/messaging");
-const { getDatabase } = require("firebase-admin/database");
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
+import { getDatabase } from "firebase-admin/database";
 
-// Hardcode SA purely for serverless fast deploy
 const serviceAccount = {
   "type": "service_account",
   "project_id": "marshmallow-bba0e",

@@ -9,7 +9,17 @@ const defaultReminders = [];
 export const ReminderProvider = ({ children }) => {
   const [reminders, setReminders] = useState(() => {
     const saved = localStorage.getItem('marshmallow_reminders');
-    return saved ? JSON.parse(saved) : defaultReminders;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Remove the original 6 mock hardcoded reminders by their exact string IDs ('1' to '6') so the user sees 0
+      const filtered = parsed.filter(r => !['1', '2', '3', '4', '5', '6'].includes(r.id));
+      if (filtered.length !== parsed.length) {
+         localStorage.setItem('marshmallow_reminders', JSON.stringify(filtered));
+         return filtered;
+      }
+      return parsed;
+    }
+    return defaultReminders;
   });
 
   useEffect(() => {

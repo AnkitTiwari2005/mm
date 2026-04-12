@@ -77,6 +77,19 @@ export const setupNotificationChannels = async () => {
       sound: 'default',
     });
 
+    // Chat channel - high priority for messages
+    await LocalNotifications.createChannel({
+      id: 'marshmallow_chat',
+      name: 'Marshmallow Chat',
+      description: 'Notifications for new messages in Our Space',
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+      sound: 'default',
+      lights: true,
+      lightColor: '#E879A2',
+    });
+
     // Register listener for received notifications to trigger vibration
     LocalNotifications.addListener('localNotificationReceived', async (notification) => {
       const vibrateEnabled = localStorage.getItem('marshmallow_vibrate_enabled') === 'true';
