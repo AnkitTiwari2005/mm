@@ -19,6 +19,8 @@ import { ReminderProvider } from './contexts/ReminderContext';
 import { FileProvider } from './contexts/FileContext';
 
 import { setupNotificationChannels, scheduleWellnessNotifications, rescheduleAllTasks } from './utils/notifications';
+import { initPushNotifications } from './utils/pushNotifications';
+import { startBackgroundChatListener } from './utils/firebase';
 import { useEffect } from 'react';
 
 export default function App() {
@@ -28,13 +30,20 @@ export default function App() {
       await scheduleWellnessNotifications();
 
       // Re-schedule all pending task notifications on every app launch
-      // This ensures notifications survive app kills and device restarts
       try {
         const stored = localStorage.getItem('marshmallow_tasks');
         if (stored) {
           const tasks = JSON.parse(stored);
           await rescheduleAllTasks(tasks);
         }
+      } catch { /* ignore */ }
+
+      // Initialize FCM push notifications for shared chat
+      try {
+        const userName = localStorage.getItem('marshmallow_userName')?.replace(/"/g, '') || 'anonymous';
+        await initPushNotifications(userName);
+        // Start listening for incoming partner messages (local notifications)
+        startBackgroundChatListener(userName);
       } catch { /* ignore */ }
     };
 

@@ -43,3 +43,6 @@ capacitor.config.json.tmp
 # API keys
 .env
 .env.local
+
+service-account-key.json
+google-services.json

@@ -41,4 +41,63 @@ export const subscribeToMessages = (callback, limit = 80) => {
   });
 };
 
+// ── Background Chat Notification Listener ──
+// Listens for new messages and shows local notifications
+// when they come from someone other than the current user
+let lastKnownMessageCount = -1;
+let bgListenerActive = false;
+
+export const startBackgroundChatListener = (currentUserName) => {
+  if (bgListenerActive) return; // Prevent duplicates
+  bgListenerActive = true;
+
+  const messagesRef = query(ref(db, 'messages'), limitToLast(1));
+
+  onValue(messagesRef, async (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    const msgs = Object.values(data);
+    const latestMsg = msgs[0];
+
+    // Skip if it's our own message
+    if (!latestMsg || latestMsg.sender === currentUserName) return;
+
+    // Skip on initial load (don't notify for old messages)
+    if (lastKnownMessageCount === -1) {
+      lastKnownMessageCount = Date.now();
+      return;
+    }
+
+    // Only notify for messages created after we started listening
+    const msgTime = latestMsg.createdAt || 0;
+    if (msgTime <= lastKnownMessageCount) return;
+    lastKnownMessageCount = msgTime;
+
+    // Show local notification
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: `💕 ${latestMsg.sender}`,
+          body: latestMsg.text || 'Sent you a message',
+          id: Math.floor(Math.random() * 100000),
+          schedule: { at: new Date(Date.now() + 500) },
+          sound: 'default',
+          channelId: 'marshmallow_chat',
+          extra: { type: 'shared_chat' },
+        }],
+      });
+    } catch (e) {
+      console.log('Local notification error:', e);
+    }
+
+    // Also vibrate
+    try {
+      const { Haptics } = await import('@capacitor/haptics');
+      await Haptics.vibrate({ duration: 300 });
+    } catch {}
+  });
+};
+
 export { db };
