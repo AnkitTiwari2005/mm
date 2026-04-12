@@ -130,14 +130,50 @@ export default function ProfileScreen() {
 
   const completedTasks = tasks.filter(t => t.completed).length;
   const totalTasks = tasks.length;
-  const hasDoneTaskToday = tasks.some(t => t.completed);
-  const currentStreak = hasDoneTaskToday ? 'Active' : 'Idle';
+
+  // Calculate actual streak: consecutive days with completed tasks
+  const calculateStreak = () => {
+    const completedDates = tasks
+      .filter(t => t.completed && t.completedAt)
+      .map(t => {
+        const d = new Date(t.completedAt);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      });
+    // Also count tasks completed today (even if no completedAt, check if any completed)
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+    if (tasks.some(t => t.completed)) {
+      completedDates.push(todayKey);
+    }
+    const uniqueDates = [...new Set(completedDates)];
+    if (uniqueDates.length === 0) return 0;
+
+    // Count backwards from today
+    let streak = 0;
+    let checkDate = new Date();
+    for (let i = 0; i < 365; i++) {
+      const key = `${checkDate.getFullYear()}-${checkDate.getMonth()}-${checkDate.getDate()}`;
+      if (uniqueDates.includes(key)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else if (i === 0) {
+        // Today might not have completed tasks yet, check yesterday
+        checkDate.setDate(checkDate.getDate() - 1);
+        continue;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
+  const currentStreak = calculateStreak();
 
   const stats = [
     { label: 'Tasks', value: totalTasks, iconName: 'task_alt' },
     { label: 'Done', value: completedTasks, iconName: 'check_circle' },
     { label: 'Reminders', value: reminders.length, iconName: 'notifications' },
-    { label: 'Streak', value: currentStreak, iconName: 'local_fire_department' },
+    { label: 'Streak', value: `${currentStreak}d`, iconName: 'local_fire_department' },
   ];
 
   const handleTestVibrate = async () => {

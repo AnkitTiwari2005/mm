@@ -220,7 +220,7 @@ export default function ChatScreen() {
           </div>
         )}
 
-        {/* Message bubbles */}
+        {/* Message bubbles with day separators */}
         {activeMessages.map((msg, i) => {
           const isMe = mode === 'mallow'
             ? msg.role === 'user'
@@ -228,40 +228,56 @@ export default function ChatScreen() {
           const text = mode === 'mallow' ? msg.content : msg.text;
           const senderLabel = mode === 'shared' && !isMe ? msg.sender : null;
 
+          // Day separator logic
+          const msgDate = msg.timestamp ? new Date(msg.timestamp) : null;
+          const prevMsg = i > 0 ? activeMessages[i - 1] : null;
+          const prevDate = prevMsg?.timestamp ? new Date(prevMsg.timestamp) : null;
+          const showDaySep = msgDate && (!prevDate ||
+            msgDate.toDateString() !== prevDate.toDateString());
+
           return (
-            <motion.div
-              key={msg.id || i}
-              initial={{ opacity: 0, y: 12, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
-              className={`flex mb-2 ${isMe ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className="max-w-[80%]">
-                {senderLabel && (
-                  <p className="text-[10px] font-bold text-on-surface-muted mb-0.5 px-3">{senderLabel}</p>
-                )}
-                <div
-                  className={`px-4 py-2.5 rounded-[20px] ${
-                    isMe ? 'rounded-br-[6px]' : 'rounded-bl-[6px]'
-                  }`}
-                  style={isMe ? {
-                    background: 'linear-gradient(135deg, #F9A8D4, #E879A2)',
-                    color: 'white',
-                    boxShadow: '0 4px 16px rgba(232,121,162,0.2)',
-                  } : {
-                    background: 'rgba(255,255,255,0.9)',
-                    border: '1px solid rgba(232,121,162,0.1)',
-                    color: '#2D1040',
-                    boxShadow: '0 2px 8px rgba(45,16,64,0.04)',
-                  }}
-                >
-                  <p className="font-body text-[14px] leading-relaxed whitespace-pre-wrap">{text}</p>
+            <React.Fragment key={msg.id || i}>
+              {showDaySep && (
+                <div className="flex items-center justify-center my-4">
+                  <div className="px-4 py-1.5 rounded-full font-quicksand text-[10px] font-bold text-on-surface-muted uppercase tracking-widest"
+                    style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(232,121,162,0.08)' }}>
+                    {formatDateLabel(msgDate)}
+                  </div>
                 </div>
-                <p className={`text-[9px] mt-0.5 px-3 text-on-surface-muted ${isMe ? 'text-right' : 'text-left'}`}>
-                  {msg.timestamp ? formatTime(msg.timestamp) : ''}
-                </p>
-              </div>
-            </motion.div>
+              )}
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.3) }}
+                className={`flex mb-2 ${isMe ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className="max-w-[80%]">
+                  {senderLabel && (
+                    <p className="text-[10px] font-bold text-on-surface-muted mb-0.5 px-3">{senderLabel}</p>
+                  )}
+                  <div
+                    className={`px-4 py-2.5 rounded-[20px] ${
+                      isMe ? 'rounded-br-[6px]' : 'rounded-bl-[6px]'
+                    }`}
+                    style={isMe ? {
+                      background: 'linear-gradient(135deg, #F9A8D4, #E879A2)',
+                      color: 'white',
+                      boxShadow: '0 4px 16px rgba(232,121,162,0.2)',
+                    } : {
+                      background: 'rgba(255,255,255,0.9)',
+                      border: '1px solid rgba(232,121,162,0.1)',
+                      color: '#2D1040',
+                      boxShadow: '0 2px 8px rgba(45,16,64,0.04)',
+                    }}
+                  >
+                    <p className="font-body text-[14px] leading-relaxed whitespace-pre-wrap">{text}</p>
+                  </div>
+                  <p className={`text-[9px] mt-0.5 px-3 text-on-surface-muted ${isMe ? 'text-right' : 'text-left'}`}>
+                    {msg.timestamp ? formatTime(msg.timestamp) : ''}
+                  </p>
+                </div>
+              </motion.div>
+            </React.Fragment>
           );
         })}
 
@@ -350,4 +366,17 @@ function formatTime(ts) {
   const m = d.getMinutes().toString().padStart(2, '0');
   const ampm = h >= 12 ? 'PM' : 'AM';
   return `${h % 12 || 12}:${m} ${ampm}`;
+}
+
+function formatDateLabel(date) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffMs = today - msgDay;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 }
