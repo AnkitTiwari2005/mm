@@ -17,14 +17,27 @@ const db = getDatabase(app);
 
 // ── Shared Chat helpers ──
 
-export const sendMessage = (text, senderName) => {
+export const sendMessage = async (text, senderName) => {
   const messagesRef = ref(db, 'messages');
-  return push(messagesRef, {
+  const result = await push(messagesRef, {
     text,
     sender: senderName,
     timestamp: serverTimestamp(),
     createdAt: Date.now(),
   });
+
+  // Silently trigger background push notification via Vercel backend
+  try {
+    fetch('https://marshmallow-backend.vercel.app/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderName, messageText: text }),
+    }).catch(console.error);
+  } catch (e) {
+    console.error('Notify callback failed:', e);
+  }
+
+  return result;
 };
 
 export const subscribeToMessages = (callback, limit = 80) => {

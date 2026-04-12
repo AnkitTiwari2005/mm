@@ -46,3 +46,4 @@ capacitor.config.json.tmp
 
 service-account-key.json
 google-services.json
+.vercel

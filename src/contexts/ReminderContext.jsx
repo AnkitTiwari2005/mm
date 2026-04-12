@@ -4,14 +4,7 @@ import { triggerHapticFeedback, scheduleReminderNotification } from '../utils/no
 
 export const ReminderContext = createContext();
 
-const defaultReminders = [
-  { id: '1', text: "Time to drink water 💧", schedule: "every 2 hours", enabled: true, icon: "water_drop" },
-  { id: '2', text: "Journal time 📔", schedule: "8 PM", enabled: true, icon: "menu_book" },
-  { id: '3', text: "Morning stretches 🧘‍♀️", schedule: "7 AM", enabled: false, icon: "self_improvement" },
-  { id: '4', text: "Don't forget your task 🌸", schedule: "when tasks pending", enabled: true, icon: "task_alt" },
-  { id: '5', text: "Take a break, cutie ☁️", schedule: "every 90 mins", enabled: true, icon: "cloud" },
-  { id: '6', text: "Bedtime wind-down 🌙", schedule: "10:30 PM", enabled: false, icon: "nights_stay" },
-];
+const defaultReminders = [];
 
 export const ReminderProvider = ({ children }) => {
   const [reminders, setReminders] = useState(() => {
